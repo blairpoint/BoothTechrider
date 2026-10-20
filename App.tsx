@@ -4,6 +4,7 @@ import { DeviceRenderer } from './components/DeviceRenderer';
 import { ManifestModal } from './components/ManifestModal';
 import { TechRiderModal } from './components/TechRiderModal';
 import { CableConnector } from './components/CableConnector';
+import { AIAssistant } from './components/AIAssistant';
 import { 
   BoothItem, DeviceDefinition, Cable, ManifestItem, SetupAnalysis, 
   SoftwareType, RiderMetadata 
@@ -13,7 +14,7 @@ import { generateCables, generateManifest, analyzeSetup } from './services/cabli
 import { 
   Trash2, RefreshCw, ZoomIn, ZoomOut, Maximize, Cable as CableIcon, 
   AlertCircle, CheckCircle, Info, Layout, Unlock, FileText, 
-  Download, Sparkles, Layers, Sliders, ShieldCheck, Printer, Check
+  Download, Sparkles, Layers, Sliders, ShieldCheck, Printer, Check, Bot
 } from 'lucide-react';
 
 const getThemeClasses = (software: SoftwareType) => {
@@ -117,6 +118,7 @@ const App: React.FC = () => {
   const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
   const [isTechRiderOpen, setIsTechRiderOpen] = useState(false);
   const [isManifestOpen, setIsManifestOpen] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [globalView, setGlobalView] = useState<'front' | 'back'>('front');
   const [scale, setScale] = useState(0.4);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -457,6 +459,17 @@ const App: React.FC = () => {
     handleAutoArrange(presetItems);
   };
 
+  const handleApplySetupFromAdvisor = (deviceIds: string[]) => {
+    const newItems: BoothItem[] = deviceIds.map((id, idx) => ({
+      instanceId: `dev-${Date.now()}-${idx}`,
+      deviceId: id,
+      x: 100 + (idx * 280),
+      y: 120,
+      view: globalView
+    }));
+    handleAutoArrange(newItems);
+  };
+
   const handleItemMouseDown = (e: MouseEvent, item: BoothItem) => {
     e.stopPropagation();
     setSelectedId(item.instanceId);
@@ -601,6 +614,11 @@ const App: React.FC = () => {
                       <button onClick={() => handleAutoArrange()} className={`flex items-center gap-2 px-3 py-1.5 ${theme.btnControl} rounded-lg border transition font-mono text-xs`} title="Auto-Arrange Ergonomic DJ Table Layout">
                           <Layout className="w-3.5 h-3.5" />
                           AUTO-ALIGN
+                      </button>
+
+                      <button onClick={() => setIsAssistantOpen(true)} className={`flex items-center gap-1.5 px-3 py-1.5 ${theme.btnControl} rounded-lg border transition font-mono text-xs text-indigo-400 hover:text-indigo-300`} title="Local Stage Manager & Tech Advisor (100% Offline, Zero Subscription)">
+                          <Bot className="w-3.5 h-3.5" />
+                          <span>TECH ADVISOR</span>
                       </button>
                       
                       <select 
@@ -940,6 +958,13 @@ const App: React.FC = () => {
             setIsTechRiderOpen(true);
           }}
           manifest={manifest}
+      />
+
+      {/* Localized Stage Manager & Tech Advisor Modal */}
+      <AIAssistant
+          isOpen={isAssistantOpen}
+          onClose={() => setIsAssistantOpen(false)}
+          onApplySetup={handleApplySetupFromAdvisor}
       />
 
     </div>

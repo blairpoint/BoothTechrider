@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, Loader2, Wrench } from 'lucide-react';
-import { getSuggestedSetup, getTechAdvice } from '../services/geminiService';
+import { X, Send, Bot, Loader2, Wrench, Sparkles, CheckCircle2, HelpCircle } from 'lucide-react';
+import { getSuggestedSetup, getTechAdvice, getLocalSetupRecommendation } from '../services/geminiService';
 import { DEVICES } from '../data/equipment';
 
 interface AIAssistantProps {
@@ -10,10 +10,10 @@ interface AIAssistantProps {
 }
 
 interface Message {
-    id: string;
-    role: 'user' | 'bot';
-    text: string;
-    suggestedDevices?: string[];
+  id: string;
+  role: 'user' | 'bot';
+  text: string;
+  suggestedDevices?: string[];
 }
 
 export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, onApplySetup }) => {
@@ -21,148 +21,174 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, onApp
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { 
-        id: 'init', 
-        role: 'bot', 
-        text: 'Hello! I am your AI Stage Manager. Describe the DJ setup you need (e.g., "Standard Festival Layout" or "Vinyl Setup"), or ask me technical questions about the gear.' 
+      id: 'init', 
+      role: 'bot', 
+      text: 'Welcome! I am your Local Sound Tech & Stage Manager. I run 100% offline with zero subscription needed.\n\nDescribe your performance style (e.g. "Festival 4 Decks", "Vinyl Turntables", "Techno Setup") or ask any technical audio routing question!' 
     }
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!prompt.trim()) return;
+  const handleSendPrompt = (inputPrompt: string) => {
+    if (!inputPrompt.trim()) return;
 
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: prompt };
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: inputPrompt };
     setMessages(prev => [...prev, userMsg]);
     setPrompt('');
     setLoading(true);
 
-    try {
-        // Heuristic to decide between setup generation and tech support
-        const isSetupRequest = /setup|booth|kit|rider|play|console|cdj|turntable|mixer/i.test(userMsg.text);
+    // Instant local processing with smooth typing delay
+    setTimeout(async () => {
+      try {
+        const isSetupRequest = /setup|booth|kit|rider|play|console|cdj|turntable|mixer|deck|rig|techno|festival|vinyl|live|hybrid/i.test(userMsg.text);
         
         if (isSetupRequest) {
-            const devices = await getSuggestedSetup(userMsg.text);
-            if (devices && devices.length > 0) {
-                // Map IDs to models for display
-                const deviceNames = devices.map(id => DEVICES.find(d => d.id === id)?.model || id).join(', ');
-                
-                setMessages(prev => [...prev, {
-                    id: Date.now().toString(),
-                    role: 'bot',
-                    text: `I've designed a setup for you: ${deviceNames}. Click below to load it onto the canvas.`,
-                    suggestedDevices: devices
-                }]);
-            } else {
-                 setMessages(prev => [...prev, {
-                    id: Date.now().toString(),
-                    role: 'bot',
-                    text: "I couldn't match any specific equipment from our inventory to that request. Try asking for 'CDJs' or 'Technics'."
-                }]);
-            }
-        } else {
-            const advice = await getTechAdvice(userMsg.text);
-            setMessages(prev => [...prev, {
-                id: Date.now().toString(),
-                role: 'bot',
-                text: advice
-            }]);
-        }
-    } catch (e) {
-        setMessages(prev => [...prev, {
-            id: Date.now().toString(),
+          const rec = getLocalSetupRecommendation(userMsg.text);
+          const deviceNames = rec.devices.map(id => DEVICES.find(d => d.id === id)?.model || id).join(', ');
+          
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
             role: 'bot',
-            text: "Sorry, I'm having trouble connecting to the mainframe right now."
+            text: `🎯 **${rec.setupName}**\n\n${rec.reasoning}\n\n**Included Hardware:**\n${deviceNames}`,
+            suggestedDevices: rec.devices
+          }]);
+        } else {
+          const advice = await getTechAdvice(userMsg.text);
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            role: 'bot',
+            text: advice
+          }]);
+        }
+      } catch (e) {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'bot',
+          text: "I couldn't match equipment to that request. Try 'Festival 4 Decks' or 'Vinyl Turntables'."
         }]);
-    } finally {
+      } finally {
         setLoading(false);
-    }
+      }
+    }, 250);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg h-[600px] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg h-[620px] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         
         {/* Header */}
         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/50">
-                    <Bot className="w-6 h-6 text-indigo-400" />
-                </div>
-                <div>
-                    <h2 className="font-bold text-slate-100">AI Stage Manager</h2>
-                    <p className="text-xs text-slate-400">Powered by Gemini 2.5</p>
-                </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/40 text-indigo-400">
+              <Bot className="w-5 h-5" />
             </div>
-            <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
-                <X className="w-6 h-6" />
-            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-slate-100 text-sm">Stage Manager & Tech Advisor</h2>
+                <span className="bg-emerald-950 text-emerald-400 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border border-emerald-800/50">
+                  OFFLINE LOCAL
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">Instant expert gear setups & audio routing guidance</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Chat Area */}
+        {/* Quick Suggestion Chips */}
+        <div className="p-2.5 bg-slate-950/60 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px]">
+          <button
+            onClick={() => handleSendPrompt('Festival 4 CDJ Setup')}
+            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap transition border border-slate-700/60"
+          >
+            🎪 Festival 4-Deck
+          </button>
+          <button
+            onClick={() => handleSendPrompt('Vinyl Analog Setup')}
+            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap transition border border-slate-700/60"
+          >
+            💿 Vinyl Turntables
+          </button>
+          <button
+            onClick={() => handleSendPrompt('Underground Techno Rig')}
+            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap transition border border-slate-700/60"
+          >
+            ⚡ Underground Techno
+          </button>
+          <button
+            onClick={() => handleSendPrompt('How do I eliminate turntable hum?')}
+            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap transition border border-slate-700/60"
+          >
+            ❓ Ground Hum Fix
+          </button>
+        </div>
+
+        {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900" ref={scrollRef}>
-            {messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl p-4 ${
-                        msg.role === 'user' 
-                            ? 'bg-indigo-600 text-white rounded-br-none' 
-                            : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none'
-                    }`}>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                        
-                        {msg.suggestedDevices && (
-                            <div className="mt-4 pt-3 border-t border-slate-700/50">
-                                <button 
-                                    onClick={() => {
-                                        onApplySetup(msg.suggestedDevices!);
-                                        onClose();
-                                    }}
-                                    className="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors"
-                                >
-                                    <Wrench className="w-3 h-3" />
-                                    BUILD THIS BOOTH
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ))}
-            {loading && (
-                <div className="flex justify-start">
-                    <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
-                        <span className="text-xs text-slate-400">Processing request...</span>
-                    </div>
-                </div>
-            )}
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[88%] rounded-2xl p-3.5 text-xs ${
+                msg.role === 'user' 
+                  ? 'bg-indigo-600 text-white rounded-br-none shadow-md' 
+                  : 'bg-slate-800/80 text-slate-200 border border-slate-700/70 rounded-bl-none shadow-sm'
+              }`}>
+                <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                
+                {msg.suggestedDevices && (
+                  <div className="mt-3 pt-2.5 border-t border-slate-700/60">
+                    <button 
+                      onClick={() => {
+                        onApplySetup(msg.suggestedDevices!);
+                        onClose();
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-md"
+                    >
+                      <Wrench className="w-3.5 h-3.5" />
+                      BUILD THIS BOOTH ON CANVAS
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-slate-800 rounded-2xl p-3 border border-slate-700 flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+                <span className="text-xs text-slate-400">Formulating optimal rider...</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800">
-            <div className="relative">
-                <input 
-                    type="text" 
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Ask for a setup or technical advice..."
-                    className="w-full bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-600 rounded-lg py-3 pl-4 pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
-                <button 
-                    onClick={handleSend}
-                    disabled={loading || !prompt.trim()}
-                    className="absolute right-2 top-2 p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    <Send className="w-4 h-4" />
-                </button>
-            </div>
+        {/* Input */}
+        <div className="p-3 bg-slate-950 border-t border-slate-800">
+          <div className="relative">
+            <input 
+              type="text" 
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendPrompt(prompt)}
+              placeholder="Ask for gear recommendations or tech advice..."
+              className="w-full bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 rounded-xl py-2.5 pl-3.5 pr-10 text-xs focus:outline-none focus:border-indigo-500 transition-all"
+            />
+            <button 
+              onClick={() => handleSendPrompt(prompt)}
+              disabled={loading || !prompt.trim()}
+              className="absolute right-2 top-2 p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
       </div>
