@@ -1,0 +1,8 @@
+{
+  "name": "DJ Booth Architect",
+  "description": "Design artist DJ booths and generate professional Technical Riders, stage plots, and PDF equipment specifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
